@@ -9,8 +9,10 @@ class Robot:
         self.l1 = 3
         self.l2 = 3
         
-        self.velocity_limit = 2
-        self.accleration_limit = 0.5
+        self.v1_limit = 0.002
+        self.a1_limit = 0.0002
+        self.v2_limit = 0.002
+        self.a2_limit = 0.0002
 
         self.arm = tinyik.Actuator(['z', [self.l1, 0, 0], 'z', [self.l2, 0, 0]])
 
@@ -43,12 +45,50 @@ class Robot:
                          markeredgecolor='r')
         plt.gca().add_line(line)
 
-
         # Draw Weeds
         plt.plot(weeds[:,0], weeds[:,1], 'x')
 
         plt.show(block=False)
         plt.pause(0.1)
+
+    def find_maximums_joint_space(self, traj, start_time, end_time, interval):
+        t = np.arange(start_time, end_time, interval)
+        x = np.zeros_like(t)
+        y = np.zeros_like(t)
+        theta1s = np.zeros_like(t)
+        theta2s = np.zeros_like(t)
+        plt.figure()
+        for i in range(len(t)):
+            trajectory = traj(t[i])
+            x[i] = trajectory[0]
+            y[i] = trajectory[1]
+            theta1, theta2 = self.inverse_kinematics(trajectory[0], trajectory[1])
+            theta1s[i] = theta1
+            theta2s[i] = theta2
+        dtheta1s = np.diff(theta1s)
+        dtheta2s = np.diff(theta2s)
+        ddtheta1s = np.diff(dtheta1s)
+        ddtheta2s = np.diff(dtheta2s)
+        plt.plot(ddtheta2s)
+        max_v1 = np.max(np.abs(dtheta1s))
+        max_v2 = np.max(np.abs(dtheta2s))
+        max_a1 = np.max(np.abs(ddtheta1s))
+        max_a2 = np.max(np.abs(ddtheta1s))
+        return np.array([[max_v1, max_v2], [max_a1, max_a2]])
+
+    def generate_feasible_trajectory(self, start_state, weed_state, start_time, spray_time, velocity):
+        """ Returns a trajectory to spray a single weed given joint limits.
+            If not possible returns None """
+        # Find first possible intercept point i.e y at max
+        # Find time it will happen at
+        # Generate a trajectory to see if possible
+        # If possible run
+        # If not then why
+            # if limited by travel_time (i.e. breaks constraints in travel to intercept point
+                # increase travel_time (changes intercept point)
+            # if limited by spray_time ((i.e. breaks constraints in tracking of weed)
+                # unfeasible to spray (bit of a assumption but good enough)
+        
 
     def main(self):
         plt.close('all')
@@ -65,6 +105,7 @@ class Robot:
         travel_time = 5
         spray_time = 3
         traj = traGenerator.generate_full_trajectory(start_state, weeds, start_time, travel_time, spray_time, velocity, plot = True)
+        print(self.find_maximums_joint_space(traj, start_time, len(weeds)*(start_time + travel_time + spray_time), 0.1))
 
         t = np.arange(start_time, len(weeds)*(start_time + travel_time + spray_time), 0.2)
         x = np.zeros_like(t)
