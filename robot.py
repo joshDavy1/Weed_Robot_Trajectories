@@ -9,10 +9,10 @@ class Robot:
         self.l1 = 3
         self.l2 = 3
         
-        self.v1_limit = 0.002
-        self.a1_limit = 0.0002
-        self.v2_limit = 0.002
-        self.a2_limit = 0.0002
+        self.v1_limit = 0.5
+        self.a1_limit = 0.3
+        self.v2_limit = 0.5
+        self.a2_limit = 0.3
 
         self.arm = tinyik.Actuator(['z', [self.l1, 0, 0], 'z', [self.l2, 0, 0]])
 
@@ -73,7 +73,7 @@ class Robot:
         max_v1 = np.max(np.abs(dtheta1s))
         max_v2 = np.max(np.abs(dtheta2s))
         max_a1 = np.max(np.abs(ddtheta1s))
-        max_a2 = np.max(np.abs(ddtheta1s))
+        max_a2 = np.max(np.abs(ddtheta2s))
         return np.array([[max_v1, max_v2], [max_a1, max_a2]])
 
     def generate_feasible_trajectory(self, start_state, weed_state, start_time, spray_time, velocity):
@@ -105,7 +105,7 @@ class Robot:
         travel_time = 5
         spray_time = 3
         traj = traGenerator.generate_full_trajectory(start_state, weeds, start_time, travel_time, spray_time, velocity, plot = True)
-        print(self.find_maximums_joint_space(traj, start_time, len(weeds)*(start_time + travel_time + spray_time), 0.1))
+        print(self.find_maximums_joint_space(traj, start_time, len(weeds)*(start_time + travel_time + spray_time), 0.5))
 
         t = np.arange(start_time, len(weeds)*(start_time + travel_time + spray_time), 0.2)
         x = np.zeros_like(t)
