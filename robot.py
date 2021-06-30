@@ -65,10 +65,10 @@ class Robot:
             theta1, theta2 = self.inverse_kinematics(trajectory[0], trajectory[1])
             theta1s[i] = theta1
             theta2s[i] = theta2
-        dtheta1s = np.diff(theta1s)
-        dtheta2s = np.diff(theta2s)
-        ddtheta1s = np.diff(dtheta1s)
-        ddtheta2s = np.diff(dtheta2s)
+        dtheta1s = np.diff(theta1s)/interval
+        dtheta2s = np.diff(theta2s)/interval
+        ddtheta1s = np.diff(dtheta1s)/interval
+        ddtheta2s = np.diff(dtheta2s)/interval
         plt.plot(ddtheta2s)
         max_v1 = np.max(np.abs(dtheta1s))
         max_v2 = np.max(np.abs(dtheta2s))
@@ -105,7 +105,7 @@ class Robot:
         travel_time = 5
         spray_time = 3
         traj = traGenerator.generate_full_trajectory(start_state, weeds, start_time, travel_time, spray_time, velocity, plot = True)
-        print(self.find_maximums_joint_space(traj, start_time, len(weeds)*(start_time + travel_time + spray_time), 0.5))
+        print(self.find_maximums_joint_space(traj, start_time, len(weeds)*(start_time + travel_time + spray_time), 0.3))
 
         t = np.arange(start_time, len(weeds)*(start_time + travel_time + spray_time), 0.2)
         x = np.zeros_like(t)
