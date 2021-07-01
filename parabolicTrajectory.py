@@ -6,7 +6,7 @@ class ParabolicTrajectory:
         self.inverse_kinematics_position = robot_def.inverse_kinematics
         self.joint_velocity_limits = robot_def.joint_velocity_limits
         self.joint_accleration_limits = robot_def.joint_accleration_limits
-        self.number_of_joints = robot_def.number_of_joint
+        self.number_of_joints = robot_def.number_of_joints
 
         self.t0 = t0
         self.tf = tf
@@ -22,7 +22,7 @@ class ParabolicTrajectory:
             goal = self.get_single_joint_state(self.start_state, i)
             self.all_parameters.append(self.get_polynomial_parameters(t0, tf, start, goal))
 
-    def get_polynomial_parameters(self,t0,tf,start_state,goal_state):
+    def get_polynomial_parameters(self,t0,tf,start,goal):
             # q(t) = a + bt + ct^2 + dt^3 + et^4 + ft^5
             # Fifth degree polynomial as we have 6 constraints to fit to:
             # inital position, initial velocity, initial accleration
@@ -36,27 +36,27 @@ class ParabolicTrajectory:
                                     [0, 1, 2*tf, 3*tf**2, 4*tf**3, 5*tf**4],
                                     [0, 0, 2, 6*tf, 12*tf**2, 20*tf**3]
                                     ])
-            x_input_array = np.array([[start_state[0]],
-                                    [start_state[1]],
-                                    [start_state[2]],
-                                    [goal_state[0]],
-                                    [goal_state[1]],
-                                    [goal_state[2]]
+            x_input_array = np.array([[start[0]],
+                                    [start[1]],
+                                    [start[2]],
+                                    [goal[0]],
+                                    [goal[1]],
+                                    [goal[2]]
             ])
             
             time_array_inv = np.linalg.pinv(time_array)
-            parameters = np.matmul(time_array_inv, x_input_array)
-            return parameters    
+            return np.matmul(time_array_inv, x_input_array)
+             
 
     def polynomial(self, parameters, t):
-        terms = [1, t, t**2, t**3, t**4, t**5]
+        terms = np.array([1, t, t**2, t**3, t**4, t**5])
         return np.dot(terms, parameters)
     
     def inverse_kinematics_velocity(self, velocity_xy, position_xy, dt = 0.005):
         position = self.inverse_kinematics_position(position_xy)
                                                             # x = x_0  + vt
         position_after_dt = self.inverse_kinematics_position(position_xy + velocity_xy*dt)
-        # v = (x(t+e) - x(t))/dt
+        # v = (x(t+dt) - x(t))/dt
         return (position_after_dt-position)/dt
     
     def inverse_kinematics_accleration(self, accleration_xy, velocity_xy, position_xy, dt = 0.005):
@@ -65,7 +65,7 @@ class ParabolicTrajectory:
                                                             # v = v_0 + at
                                                              position_xy + velocity_xy*dt+0.5*accleration_xy*dt**2)
                                                              #x = x_o + vt + 1/2at^2
-        # a = (v(t+e) - v(t))/dt                                                     
+        # a = (v(t+dt) - v(t))/dt                                                     
         return (velocity_after_dt-velocity)/dt
 
     def convert_state_to_joint_space(self, state_xy):
@@ -90,12 +90,12 @@ class ParabolicTrajectory:
         parameters_flipped = np.flip(parameters)
         # Finds stationary points for velocity
         # d^2y/d^2t  = 0
-        roots = np.roots(np.polyder(parameters_flipped,2))
+        roots = np.roots(np.polyder(parameters_flipped, 2))
         
         # for each stationary point
         for t in roots:
             # within the time frame
-            if t > t0 and t < tf:
+            if t0 <= t <= tf:
                 stationary_point = self.polynomial(parameters, t)
                 # if above limit
                 if np.abs(stationary_point) >= velocity_limit:
@@ -107,12 +107,12 @@ class ParabolicTrajectory:
         parameters_flipped = np.flip(parameters)
         # Finds stationary points for accleration
         # d^3y/d^3t  = 0
-        roots = np.roots(np.polyder(parameters_flipped,3))
+        roots = np.roots(np.polyder(parameters_flipped, 3))
         
         # for each stationary point
         for t in roots:
             # within the time frame
-            if t > t0 and t < tf:
+            if t0 <= t <= tf:
                 stationary_point = self.polynomial(parameters, t)
                 # if above limit
                 if np.abs(stationary_point) >= accleration_limit:
@@ -127,17 +127,26 @@ class ParabolicTrajectory:
 
         for joint in range(self.number_of_joints):
             if not self.check_in_velocity_limit(self.all_parameters[joint],
-                                            self.t0, 
-                                            self.tf, 
-                                            self.joint_velocity_limits[joint]):
+                                                self.t0, 
+                                                self.tf, 
+                                                self.joint_velocity_limits[joint]):
                 in_velocity_limits = False
 
             if not self.check_in_accleration_limit(self.all_parameters[joint],
-                                            self.t0, 
-                                            self.tf, 
-                                            self.joint_accleration_limits[joint]):
+                                                   self.t0, 
+                                                   self.tf, 
+                                                   self.joint_accleration_limits[joint]):
                 in_accleration_limits = False
         return in_velocity_limits, in_accleration_limits
+    
+    def sample_trajectory(self, t):
+        trajectory = np.zeros((self.number_of_joints, 1))
+        if self.t0 < t < self.tf:
+            for joint in range(self.number_of_joints):
+                trajectory[joint] = self.polynomial(self.all_parameters[joint], t)
+            return trajectory
+        else:
+            return None
 
     def generate_trajectory(self, dt = 0.1):
         time = np.arange(self.t0, self.tf, dt)
