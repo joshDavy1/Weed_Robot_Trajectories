@@ -26,13 +26,11 @@ class LinearTrajectory:
 
         # Generate Trajectory
         self.time = np.arange(self.t0, self.tf, self.dt)
-        print(self.time)
         intervals = self.time.shape[0]
         self.trajectory = np.zeros((self.number_of_joints, intervals))
         for i in range(intervals):
             position_xy = [self.linear_model(self.all_parameters[0], self.time[i]),
                            self.linear_model(self.all_parameters[1], self.time[i])]
-            print(position_xy)
             self.trajectory[:, i] = self.inverse_kinematics_position(position_xy).T
 
         

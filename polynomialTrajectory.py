@@ -50,7 +50,7 @@ class PolynomialTrajectory:
         terms = np.array([1, t, t**2, t**3, t**4, t**5])
         return np.dot(terms, parameters)
     
-    def inverse_kinematics_velocity(self, velocity_xy, position_xy, dt = 0.05):
+    def inverse_kinematics_velocity(self, velocity_xy, position_xy, dt = 0.005):
         position = self.inverse_kinematics_position(position_xy)
                                                             # x = x_0  + vt
         position_after_dt = self.inverse_kinematics_position(position_xy + velocity_xy*dt)
@@ -71,9 +71,9 @@ class PolynomialTrajectory:
         state['position'] = self.inverse_kinematics_position(state_xy['position'])
         state['velocity'] = self.inverse_kinematics_velocity(state_xy['velocity'],
                                                              state_xy['position'])
-        state['accleration'] = self.inverse_kinematics_velocity(state_xy['accleration'],
-                                                                 state_xy['velocity'],
-                                                                 state_xy['position'])
+        state['accleration'] = self.inverse_kinematics_accleration(state_xy['accleration'],
+                                                                   state_xy['velocity'],
+                                                                   state_xy['position'])
         return state
 
     def get_single_joint_state(self, state, joint):

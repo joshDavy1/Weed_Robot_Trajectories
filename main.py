@@ -28,13 +28,14 @@ class TwoJointRobot:
 
 class Main:
     def __init__(self):
-        self.velocity = -0.5
+        self.velocity = -1
 
     def onclick(self, event):
         ix, iy = event.xdata, event.ydata
-        self.weeds = np.concatenate((self.weeds, np.array([[ix], [iy]])), axis = 1)
+        self.weeds = np.concatenate((self.weeds, np.array([[ix], [iy]])), axis=1)
 
     def draw(self, robot_def, joint_angles):
+        self.angles = joint_angles
         # Variables
         theta1 = joint_angles[0]
         theta2 = joint_angles[1]
@@ -72,7 +73,14 @@ class Main:
         # Update weed positions
         v = np.array([[0],
                     [self.velocity]])
-        self.weeds = self.weeds + v*0.1
+        if not self.weeds.size == 0:
+            self.weeds = self.weeds + v*0.1
+
+    def get_intercept(self, weed):
+        dist = weed[1] - 3
+        intercept_time = np.abs(dist/self.velocity)
+        intercept_point = np.array([weed[0], 3])
+        return intercept_point, intercept_time
 
 
     def main(self):
@@ -84,54 +92,81 @@ class Main:
         start_state_xy['velocity'] = np.array([0, 0])
         start_state_xy['accleration'] = np.array([0, 0])
 
-
-        weed_state_xy = {}
-        weed_state_xy['position'] = np.array([2, 3])
-        weed_state_xy['velocity'] = np.array([0, self.velocity])
-        weed_state_xy['accleration'] = np.array([0, 0])
-
         start_time = 0
-        travel_time = 5
-        spray_time = 3
+        time = 0
+        spraying_time = 3
 
-        parabolic_trajectory = PolynomialTrajectory(robot_def,
-                                          start_state_xy,
-                                          weed_state_xy,
-                                          start_time,
-                                          travel_time)
-
-        check_limits = parabolic_trajectory.check_limits()
-        print("Parabolic Velocity Check Passed:", check_limits[0])
-        print("Parabolic Accleration Check Passed:", check_limits[1])
-
-        if check_limits[0] and check_limits[1]:
-            para_trajectory,_ = parabolic_trajectory.generate_trajectory()
-            plt.plot(para_trajectory[0,:], para_trajectory[1,:])
-
-        linear_trajectory = LinearTrajectory(robot_def,
-                                             weed_state_xy,
-                                             travel_time,
-                                             spray_time)
-        
-        check_limits = linear_trajectory.check_limits()
-        print("Linear Velocity Check Passed:", check_limits[0])
-        print("Linear Accleration Check Passed:", check_limits[1])
-
-        if check_limits[0] and check_limits[1]:
-            lin_trajectory,_ = linear_trajectory.generate_trajectory()
-            plt.plot(lin_trajectory[0], lin_trajectory[1])
-
-        plt.show(block=False)
-        
         fig = plt.figure(figsize=(6, 12), dpi=80)
         cid = fig.canvas.mpl_connect('button_press_event', self.onclick)
-        trajectory = np.concatenate((para_trajectory, lin_trajectory), axis=1)
-        self.weeds = np.empty((2,1))
-        size = trajectory.shape[1]
-        for i in range(size):
-            self.draw(robot_def, trajectory[:,i])
-            self.update()
-        input()
+
+        self.weeds = np.array([[1],[7]])
+        self.draw(robot_def, robot_def.inverse_kinematics(start_state_xy['position']))
+
+        while not self.weeds.size == 0:
+            # Get next weed to intercept
+            # Find intercept point
+            # Create trajectory
+            # If checks pass
+            #   Execute
+            print(self.weeds)
+            n = self.weeds.shape[1]
+            selected_weed = self.weeds[:,0]
+            if self.weeds[1,0] < 3:
+                # Delete
+                self.weeds = np.delete(self.weeds,0,1)
+            if self.weeds.size == 0:
+                continue
+
+            weed_pose, intercept_time = self.get_intercept(selected_weed.T)
+            travel_time = start_time + intercept_time
+            spray_time = travel_time + spraying_time
+            print(start_time, travel_time, spray_time)
+            weed_state_xy = {}
+            weed_state_xy['position'] = weed_pose
+            weed_state_xy['velocity'] = np.array([0, self.velocity])
+            weed_state_xy['accleration'] = np.array([0, 0])
+
+            
+            
+            parabolic_trajectory = PolynomialTrajectory(robot_def,
+                                            start_state_xy,
+                                            weed_state_xy,
+                                            start_time,
+                                            travel_time)
+            
+            linear_trajectory = LinearTrajectory(robot_def,
+                                                weed_state_xy,
+                                                travel_time,
+                                                spray_time)
+
+            para_check_limits = parabolic_trajectory.check_limits()
+            print("Parabolic Velocity Check Passed:", para_check_limits[0])
+            print("Parabolic Accleration Check Passed:", para_check_limits[1])
+
+            lin_check_limits = linear_trajectory.check_limits()
+            print("Linear Velocity Check Passed:", lin_check_limits[0])
+            print("Linear Accleration Check Passed:", lin_check_limits[1])
+
+            #if 1==1:#np.all(para_check_limits) and np.all(lin_check_limits):
+            para_trajectory,_ = parabolic_trajectory.generate_trajectory()
+            lin_trajectory,_ = linear_trajectory.generate_trajectory()
+            #print(para_trajectory, lin_trajectory)
+            trajectory = np.concatenate((para_trajectory, lin_trajectory), axis=1)
+            # Execute
+            size = trajectory.shape[1]
+            for i in range(size):
+                self.draw(robot_def, trajectory[:,i])
+                time += 0.1
+                self.update()
+            
+            
+
+            start_state_xy = linear_trajectory.get_goal_state_xy()
+            start_time = time
+            
+            self.weeds = np.delete(self.weeds,0,1)
+
+            #input()
 
 
 if __name__ == "__main__":
