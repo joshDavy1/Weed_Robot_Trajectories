@@ -4,6 +4,7 @@ class LinearTrajectory:
     def __init__(self, robot_def, start_state_xy, t0, tf, dt=0.1):
         self.forward_kinematics_position = robot_def.forward_kinematics
         self.inverse_kinematics_position = robot_def.inverse_kinematics
+        self.in_position_limits = robot_def.check_limits_position
         self.joint_velocity_limits = robot_def.joint_velocity_limits
         self.joint_accleration_limits = robot_def.joint_accleration_limits
         self.number_of_joints = robot_def.number_of_joints
@@ -46,11 +47,17 @@ class LinearTrajectory:
     ## Public Functions
 
     def check_limits(self):
+        n = self.trajectory.shape[1]
+        in_range = np.empty(n)
+        for i in range(n):
+            in_range[i] = self.in_position_limits(self.trajectory[:,i].T)
+        in_position_limits = np.all(in_range)
+
         velocity = np.diff(self.trajectory)/self.dt
         accleration = np.diff(velocity)/self.dt
         in_velocity_limits = np.all(velocity <= np.atleast_2d(self.joint_velocity_limits).T)
         in_accleration_limits = np.all(accleration <= np.atleast_2d(self.joint_accleration_limits).T)
-        return in_velocity_limits, in_accleration_limits
+        return in_position_limits, in_velocity_limits, in_accleration_limits
     
     def sample_trajectory(self, t):
         trajectory = np.zeros((self.number_of_joints, 1))
