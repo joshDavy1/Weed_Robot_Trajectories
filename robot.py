@@ -5,14 +5,14 @@ import matplotlib.pyplot as plt
 class TwoJointRobot:
     def __init__(self):
         self.number_of_joints = 2
-        self.joint_velocity_limits = np.array([1, 1])
-        self.joint_accleration_limits = np.array([0.5, 0.5])
+        self.joint_velocity_limits = np.array([2, 2])
+        self.joint_accleration_limits = np.array([2, 2])
         self.link_lengths = np.array([3, 3])
         self.arm = tinyik.Actuator(['z', [self.link_lengths[0], 0, 0],
                                     'z', [self.link_lengths[1], 0, 0]])
         self.joint_angles = self.inverse_kinematics(np.array([1, 1]))
 
-        fig = plt.figure(figsize=(6, 12), dpi=80)
+        fig = plt.figure(figsize=(8, 12), dpi=80)
         fig.canvas.mpl_connect('button_press_event', self.onclick)
         self.read_click = True
         self.last_clicked = np.empty((2,1))
@@ -46,7 +46,7 @@ class TwoJointRobot:
         plt.clf()
         plt.axis('scaled')
         plt.title("Robot")
-        plt.axis([-5, 5, -2, 15])
+        plt.axis([-7, 7, -8, 20])
         # Arm Kinematics
         x1 = l1*np.cos(theta1)
         y1 = l1*np.sin(theta1)
