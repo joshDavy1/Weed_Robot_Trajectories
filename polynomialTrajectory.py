@@ -128,7 +128,6 @@ class PolynomialTrajectory:
                 accleration = np.polyval(accleration_poly, t)
                 # if above limit
                 if np.abs(accleration) >= accleration_limit:
-                    print(accleration,t)
                     return False
         return True
 
@@ -155,8 +154,8 @@ class PolynomialTrajectory:
     def sample_trajectory(self, t):
         # Sample trajectory at t
         if self.t0 <= t <= self.tf:
+            trajectory = np.zeros(self.number_of_joints)
             for joint in range(self.number_of_joints):
-                trajectory = np.zeros(2)
                 trajectory[joint] = self.__polynomial(self.all_parameters[joint], t)
             return trajectory
         else:

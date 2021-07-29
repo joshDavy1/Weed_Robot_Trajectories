@@ -62,10 +62,11 @@ class LinearTrajectory:
         return in_position_limits, in_velocity_limits, in_accleration_limits
     
     def sample_trajectory(self, t):
-        if self.t0 < t < self.tf:
-            trajectory = np.zeros((self.number_of_joints, 1))
+        if self.t0 <= t <= self.tf:
+            trajectory = np.zeros(self.number_of_joints)
             for joint in range(self.number_of_joints):
-                trajectory[joint] = self.inverse_kinematics_position(self.__linear_model(self.all_parameters[joint], t))
+                trajectory[joint] = self.__linear_model(self.all_parameters[joint], t)
+            trajectory = self.inverse_kinematics_position(trajectory)
             return trajectory
         else:
             return None
@@ -74,4 +75,9 @@ class LinearTrajectory:
         return self.trajectory, self.time
 
     def get_goal_state_xy(self):
-        return self.goal_state_xy
+        goal_state_xy = self.start_state_xy.copy()
+        trajectory = np.zeros(self.number_of_joints)
+        for joint in range(self.number_of_joints):
+            trajectory[joint] = self.__linear_model(self.all_parameters[joint], self.tf)
+        goal_state_xy['position'] = trajectory
+        return goal_state_xy

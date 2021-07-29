@@ -6,28 +6,36 @@ class TwoJointRobot:
     def __init__(self):
         self.number_of_joints = 2
         self.joint_velocity_limits = np.array([2, 2])
-        self.joint_accleration_limits = np.array([2, 2])
+        self.joint_accleration_limits = np.array([3, 3])
         self.link_lengths = np.array([3, 3])
-        self.arm = tinyik.Actuator(['z', [self.link_lengths[0], 0, 0],
-                                    'z', [self.link_lengths[1], 0, 0]])
         self.joint_angles = self.inverse_kinematics(np.array([1, 1]))
-
         fig = plt.figure(figsize=(8, 12), dpi=80)
         fig.canvas.mpl_connect('button_press_event', self.onclick)
         self.read_click = True
         self.last_clicked = np.empty((2,1))
 
     def forward_kinematics(self, joint_positions):
-        self.arm.angles = joint_positions
-        return self.arm.ee[0:2]
+        theta1 = joint_positions[0]
+        theta2 = joint_positions[1]
+        l1 = self.link_lengths[0]
+        l2 = self.link_lengths[1]
+
+        x1 = l1*np.cos(theta1)
+        y1 = l1*np.sin(theta1)
+        x2 = l2*np.cos(theta1 + theta2) + x1
+        y2 = l2*np.sin(theta1 + theta2) + y1
+        return np.array([x2, y2])
 
     def inverse_kinematics(self, xy_positions):
-        if xy_positions[0]**2 +xy_positions[1]**2 >= \
-            (self.link_lengths[0]+self.link_lengths[1])**2:
-            raise Exception("Beyond Arm Reach")
-        # Z coord required
-        self.arm.ee = np.concatenate((xy_positions, [0]))
-        return self.arm.angles
+        x = xy_positions[0]
+        y = xy_positions[1]
+        l1 = self.link_lengths[0]
+        l2 = self.link_lengths[1]
+
+        cos_theta_2 = (x**2 + y**2 - l1**2 - l2**2) / (2*l1*l2)
+        theta2 = np.arccos(cos_theta_2)
+        theta1 = np.arctan2(y,x)  - np.arctan2(l2*np.sin(theta2), (l1 + l2*np.cos(theta2)) )
+        return np.array([theta1, theta2])
 
     def check_limits_position(self, xy_positions):
         # Check in arm reach
@@ -68,7 +76,7 @@ class TwoJointRobot:
             plt.plot(weeds[0,:], weeds[1,:], 'x')
         # Show and delay
         plt.show(block=False)
-        plt.pause(0.1)
+        plt.pause(0.05)
     
     def onclick(self, event):
         ix, iy = event.xdata, event.ydata
