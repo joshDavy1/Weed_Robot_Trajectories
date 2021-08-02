@@ -9,89 +9,86 @@ class Ibex(rtb.DHRobot):
         super().__init__(
                 [
                     rtb.RevoluteDH(d=0, alpha=-np.pi/2),
-                    rtb.RevoluteDH(a=self.link_lengths[0], alpha=0),
-                    rtb.RevoluteDH(a=self.link_lengths[1], alpha=0),
+                    rtb.RevoluteDH(a=self.link_lengths[0]),
+                    rtb.RevoluteDH(a=self.link_lengths[1]),
                     rtb.RevoluteDH(a=self.link_lengths[2]),
                 ], name="ibex"
                         )
 
 class ThreeJointRobot:
     def __init__(self):
-        self.number_of_joints = 3
-        self.joint_velocity_limits = np.array([1, 1, 1])
-        self.joint_accleration_limits = np.array([1, 1, 1])
         self.ibex = Ibex()
-        print(self.ibex)
-        # self.weed_fig = plt.figure(figsize=(12, 12), dpi=80)
-        # self.weed_fig.canvas.mpl_connect('button_press_event', self.onclick)
-        # self.robot_fig = plt.fig
-        # self.read_click = True
-        # self.last_clicked = np.empty((2,1))
+        self.number_of_joints = 3
+        self.joint_velocity_limits = np.array([3, 3, 3])
+        self.joint_accleration_limits = np.array([3, 3, 3])
+        self.joint_angles = self.inverse_kinematics((1, 1, 1))
+        self.weeds = None
 
     def forward_kinematics(self, joint_positions):
+        return self.forward_kinematics_full(joint_positions)[:-1]
+
+    def inverse_kinematics(self, xy_positions):
+        xyz = np.concatenate((xy_positions, [0]))
+        return self.inverse_kinematics_full(xyz)[:-1]
+
+    def forward_kinematics_full(self, joint_positions):
         l = self.ibex.link_lengths
         theta = joint_positions[0]
-        z = l[0]*np.sin(joint_positions[1]) + l[1]*np.sin(joint_positions[1]+joint_positions[2]) + l[2]
-        r = l[0]*np.cos(joint_positions[1]) + l[1]*np.cos(joint_positions[1]+joint_positions[2])
+        z = -(l[0]*np.sin(joint_positions[1]) + l[1]*np.sin(joint_positions[1] + joint_positions[2]) + l[2])
+        r = l[0]*np.cos(joint_positions[1]) + l[1]*np.cos(joint_positions[1] + joint_positions[2])
         x = r*np.cos(theta)
         y = r*np.sin(theta)
         return np.array([x, y, z])
 
-    def inverse_kinematics(self, xyz_positions):
+    def inverse_kinematics_full(self, xyz_positions):
         l = self.ibex.link_lengths
-
         x = xyz_positions[0]
         y = xyz_positions[1]
         z = xyz_positions[2]
         theta1 = np.arctan2(y, x)
-        r = x/np.cos(theta1)
-
-        cos_theta_2 = (r**2 + (z-l[2])**2 - l[0]**2 - l[1]**2) / (2*l[0]*l[1])
+        r = np.sqrt(x**2+y**2)
+        cos_theta_2 = (r**2 + (-z-l[2])**2 - l[0]**2 - l[1]**2) / (2*l[0]*l[1])
         theta3 = np.arccos(cos_theta_2)
-        theta2 = np.arctan2(z-l[2], r)  - np.arctan2(l[1]*np.sin(theta3), \
-             (l[0] + l[1]*np.cos(theta3)) ) 
-        theta4 = -theta2 -theta3 +np.pi/2
-
+        theta2 = np.arctan2(-z-l[2], r) - np.arctan2(l[1]*np.sin(theta3), (l[0] + l[1]*np.cos(theta3)) ) 
+        theta4 = -theta2 -theta3 + np.pi/2
         return np.array([theta1, theta2, theta3, theta4])
 
+    def check_limits_position(self, xyz_positions):
+        x = xyz_positions[0]
+        y = xyz_positions[1]
+        if x**2 + y**2 > 3.5**2:
+            return False
+        else:
+            return True
 
-t = ThreeJointRobot()
-x =(0, 0, 0, np.pi/2)
+    def draw_robot(self, trajectory, weeds, velocity):
+        n = trajectory.shape[1]
+        trajectory = np.concatenate((trajectory, np.zeros((1, n))))
+        for i in range(n):
+            trajectory[3, i] = -trajectory[1, i] - trajectory[2, i] + np.pi/2
+        env = self.ibex._get_graphical_backend("pyplot")
+        env.launch(self.ibex.name + " Trajectory Plot", limits=(-4, 4, -4, 4, 0, 2), fig=None)
+        env.add(self.ibex)
+        for i in range(n):
+            v = np.array([[0],
+                    [velocity]])
+            if not weeds.size == 0:
+                weeds = weeds + v*0.1
 
-q = t.inverse_kinematics((2,1, 0))
-print(q)
+            self.plot_weeds(weeds)
+            self.ibex.q = trajectory[:, i]
+            env.step(0.1)
+            
+    def plot_weeds(self, weeds):
+        if self.weeds:
+            x = self.weeds.pop(0)
+            x.remove()
+        self.weeds = plt.plot(weeds[0, :], weeds[1, :], 'bx')
+        
 
-print(t.forward_kinematics(q))
-t.ibex.plot(q)
-input()
-
-
-    # def check_limits_position(self, xy_positions):
-    #     pass
-
-    # def draw_robot(self):
-    #     pass
-
-
-    # def draw_weeds(self, weeds):
-    #     # Variables
-    #     # Set up plot
-    #     plt.clf()
-    #     plt.axis('scaled')
-    #     plt.title("Robot")
-    #     plt.axis([-5, 5, -2, 15])
-    #     end_effector = self.forward_kinematics(self.joint_angles)
-    #     plt.plot(end_effector[0], end_effector[1], 'o')
-    #     # Draw Weeds
-    #     if not weeds.size == 0:
-    #         plt.plot(weeds[0,:], weeds[1,:], 'x')
-    #     # Show and delay
-    #     plt.show(block=False)
-    #     plt.pause(0.1)
-    
-    # def onclick(self, event):
-    #     ix, iy = event.xdata, event.ydata
-    #     self.last_clicked = np.array([[ix], [iy]])
-    #     self.read_click = False
-    
-    
+if __name__ == "__main__":
+    t = ThreeJointRobot()
+    x = t.inverse_kinematics((1.5,-0.7, 2))
+    print(x)
+    print(t.forward_kinematics(x))
+    input()

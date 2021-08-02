@@ -64,7 +64,7 @@ class LinearTrajectory:
     def sample_trajectory(self, t):
         if self.t0 <= t <= self.tf:
             trajectory = np.zeros(self.number_of_joints)
-            for joint in range(self.number_of_joints):
+            for joint in range(2):
                 trajectory[joint] = self.__linear_model(self.all_parameters[joint], t)
             trajectory = self.inverse_kinematics_position(trajectory)
             return trajectory
